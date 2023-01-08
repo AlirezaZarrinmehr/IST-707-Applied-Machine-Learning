@@ -1,0 +1,149 @@
+---
+title: "IST 707- HW4"
+author: "Alireza Zarrinmehr"
+date: "2022-09-25"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+## Loading the packages
+
+```{r tidy=TRUE}
+require(stats)
+require(cluster)
+require(dplyr)
+require(ggvis)
+require(tidyr)
+```
+
+## Loading and the data file 
+
+```{r tidy=TRUE}
+#Loading the data file:
+FedPapers <- read.csv('/Users/zarrinmehr/Desktop/11- IST.707.M002.FALL22.Applied Machine Learning 16797.1231/week 4/HW 4/HW4-data-fedPapers85.csv')
+#Getting the number of rows and columns:
+dim(FedPapers)
+#The dataset comprises 85 observations and 72 variables.
+```
+## Exploring the data file 
+
+```{r}
+#Looking at the first six rows:
+head(FedPapers)
+#We can see that the text's author and title are mentioned in the first two columns. The frequency of the letters that appear in the text is indicated in columns three and beyond.
+
+#Getting the structure of data
+str(FedPapers[,1:6])
+
+#Getting the types of variables:
+table(sapply(FedPapers, class))
+#First two column are chracters and the rest are numeric.
+
+#Check how many unique authors are there in the database:
+unique(FedPapers$author)
+#We'll choose three centroids to use as our starting point for the k-means method. We selected three centroids since Hamilton, Madison, and Jay are each distinct writers.
+
+```
+##Data preparation:
+```{r}
+#Creating a new data set by removing the first two columns of the original dataset:
+FedPapersClean <- FedPapers[, 3:72]
+
+#check the new data set
+head(FedPapersClean)
+```
+
+##Cluster Analysis
+
+After performing a preliminary analysis of the data, we can move on to evaluate various clustering techniques that could provide information about the author(s). K-means and HAC are two clustering analyses that we will do.
+
+###1-1 K-Mean
+
+```{r tidy = TRUE}
+#initiate clustering with k = 3
+set.seed(54)
+KMeans <- kmeans(FedPapersClean, 3)
+
+#Ploting the clusters
+clusplot(FedPapersClean, KMeans$cluster, color = T, shade = F, labels = 5, lines = 0)
+# It is obvious that the four groups overlap one another. Making an elbow chart to establish the appropriate number of centroids to employ could be a better strategy.
+```
+###1-2 Elbow method
+
+```{r}
+#Elbow Method for finding the optimal number of clusters
+set.seed(100)
+# Compute and plot wss for k = 2 to k = 15.
+
+wss <- sapply(1:72, function(k){kmeans(FedPapersClean, k, nstart=50,iter.max = 72 )$tot.withinss})
+plot(1:72, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+```
+There is not a clear breakpoint (elbow) in the chart. Thus, we continue with K of 3 which (in this case) makes the most sense.
+
+```{r}
+FedsCluster <- cbind(FedPapers, KMeans$cluster)
+colnames(FedsCluster)[73] <- 'cluster'
+FedsClusterClean <- FedsCluster %>% group_by(author, cluster) %>% summarise(number = n()) 
+FedsClusterClean
+spread(FedsClusterClean, key = cluster, value = number)
+```
+
+Disputed texts are clustered in clusters 2 and 3. Almost half of Hamilton's writing is clustered in cluster 2 and half of it is clustered in cluster 3. 7 of Madison's texts are clustered in cluster 2 and 8 of his texts are clustered in cluster 3. In cluster 1 we have all of Jay's writing. Thus, we do not have enough evidence to support or deny any claims on the disputed texts.
+
+###1-1 HAC Method 1
+Looking at clustering through a hierarchical clustering algorithm (complete method)
+
+```{r tidy = TRUE}
+#Building two clusters using the complete method and the averag method
+HACComp <- hclust(dist(FedPapersClean), method = 'complete')
+HACAvg <- hclust(dist(FedPapersClean), method = 'average')
+#Calling both HAC clustering
+HACComp
+HACAvg
+#Graph the clusters to compare HAC and k-means algorithm 
+plot(HACComp, hang = -1, cex = 0.5, main = "Federalist Papers Cluster - Complete", label = FedPapers$filename)
+```  
+Looking at the chart, the following can be interpreted:
+All of Jay's papers are arranged in a single group to the left of the dendrogram. 
+Some of the disputed files (54, 50, 51, 52, 63) are grouped with Madison's files and may be attributed to Madison.
+Some of the disputed files can not be strongly attributed to just one author (55, 57, 56, 53, 62).
+Some of the disputed files (49) are grouped with Hamilton's files and may be attributed to Hamilton.
+
+
+###1-1 HAC Method 1
+Looking at clustering through a hierarchical clustering algorithm (average method)
+
+```{r tidy = TRUE}
+plot(HACAvg, hang = -1, cex = 0.5, main = "Federalist Papers Cluster - Average", label = FedPapers$filename)
+```  
+Looking at the chart, the following can be interpreted:
+All of Jay's papers are arranged in a single group to the left of the dendrogram. 
+Some of the disputed files (54, 51, 55, 57, 52, 63, 53, 62) are grouped with Madison's files and may be attributed to Madison.
+Some of the disputed files can not be strongly attributed to just one author (49).
+Some of the disputed files (50, 56) are grouped with Hamilton's files and may be attributed to Hamilton.
+
+
+##Conclusions
+
+There in no consensus on the result of clustering models. The Hamilton, Madison, and contested publications were ultimately clustered so closely together that we were unable to determine any real authorship. However, there may be a chance that texts 51, 52, 54, and 63 could be attributed to Madison, and 56 could be attributed to Hamilton as both of the HAC clustering models (average method and complete method) agree on that.
+
+```
+
+
+
+
